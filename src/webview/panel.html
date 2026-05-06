@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
+<title>PokéCoding</title>
+<style>
+:root {
+  --bg-primary:    #1e1e1e;
+  --bg-secondary:  #252526;
+  --bg-tertiary:   #2d2d2d;
+  --bg-hover:      #37373d;
+  --border:        #3c3c3c;
+  --text-primary:  #cccccc;
+  --text-muted:    #888888;
+  --accent:        #a78bfa;
+  --accent-dark:   #7c6df5;
+  --accent-bg:     #2d2a4a;
+  --shiny-gold:    #fbbf24;
+  --rarity-common:    #888888;
+  --rarity-uncommon:  #4ade80;
+  --rarity-rare:      #60a5fa;
+  --rarity-epic:      #c084fc;
+  --rarity-legendary: #fbbf24;
+  --rarity-mythical:  #f87171;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--vscode-font-family, 'Segoe UI', sans-serif);
+  font-size: 13px;
+  overflow-x: hidden;
+}
+
+/* TABS */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.tab {
+  flex: 1;
+  padding: 8px 4px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 11px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* TAB PANELS */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* XP BAR */
+.xp-section {
+  padding: 10px 12px 8px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.xp-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.xp-bar {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dark), var(--accent));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.xp-hint {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* COMPANION SECTION */
+.companion-section {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.walk-area {
+  width: 160px;
+  height: 110px;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+@keyframes walk {
+  0%   { transform: translateX(0px)   scaleX(1);  }
+  45%  { transform: translateX(64px)  scaleX(1);  }
+  50%  { transform: translateX(64px)  scaleX(-1); }
+  95%  { transform: translateX(0px)   scaleX(-1); }
+  100% { transform: translateX(0px)   scaleX(1);  }
+}
+#companion-sprite {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  animation: walk 6s ease-in-out infinite;
+  image-rendering: pixelated;
+  width: 96px;
+  height: 96px;
+}
+.shiny-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 14px;
+  display: none;
+}
+.companion-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+.companion-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.companion-rarity {
+  font-size: 12px;
+  font-weight: 600;
+}
+.empty-state {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.empty-state .emoji { font-size: 32px; display: block; margin-bottom: 8px; }
+
+/* NOTIFICATION */
+#notif {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  margin: 8px 12px;
+  font-size: 12px;
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+#notif img { image-rendering: pixelated; border-radius: 2px; }
+.notif-text { flex: 1; }
+.notif-name { font-weight: 600; color: var(--accent); }
+
+/* POKÉDEX */
+.pokedex-header {
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.pokedex-counter {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.gen-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.gen-btn {
+  padding: 2px 6px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.gen-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.gen-btn.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+.pokedex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: 4px;
+  padding: 8px;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+}
+.dex-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  cursor: default;
+  text-align: center;
+  transition: background 0.15s;
+}
+.dex-entry:hover { background: var(--bg-hover); }
+.dex-entry img {
+  image-rendering: pixelated;
+  width: 40px;
+  height: 40px;
+}
+.dex-entry.not-caught img {
+  filter: grayscale(1) opacity(0.3);
+}
+.dex-name {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dex-number {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+.rarity-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+/* BOX / COLLECTION */
+.box-list {
+  overflow-y: auto;
+  max-height: calc(100vh - 140px);
+}
+.box-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.box-item:hover { background: var(--bg-hover); }
+.box-item.active { background: var(--accent-bg); }
+.box-item img { image-rendering: pixelated; width: 32px; height: 32px; flex-shrink: 0; }
+.box-item-info { flex: 1; min-width: 0; }
+.box-item-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.box-item-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.box-item-stars { font-size: 11px; }
+.box-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" data-tab="companion">🐾 Compagnon</div>
+  <div class="tab" data-tab="pokedex">📖 Pokédex</div>
+  <div class="tab" data-tab="box">📦 Boîte</div>
+</div>
+
+<!-- ===== TAB: COMPANION ===== -->
+<div id="tab-companion" class="tab-panel active">
+
+  <!-- XP Bar -->
+  <div class="xp-section">
+    <div class="xp-label">
+      <span>⚡ XP</span>
+      <span id="xp-text">0 / 500</span>
+    </div>
+    <div class="xp-bar">
+      <div class="xp-fill" id="xp-fill" style="width:0%"></div>
+    </div>
+    <div class="xp-hint" id="xp-hint">500 frappes avant tirage</div>
+  </div>
+
+  <!-- Capture notification -->
+  <div id="notif">
+    <img id="notif-sprite" src="" alt="" width="32" height="32">
+    <div class="notif-text">
+      <div>Nouveau Pokémon !</div>
+      <div class="notif-name" id="notif-name"></div>
+    </div>
+  </div>
+
+  <!-- Companion display -->
+  <div id="companion-display">
+    <div class="companion-section">
+      <div class="walk-area" id="walk-area">
+        <img id="companion-sprite" src="" alt="companion">
+        <span class="shiny-badge" id="shiny-badge">✨</span>
+      </div>
+      <div class="companion-name" id="companion-name">—</div>
+      <div class="companion-meta" id="companion-meta"></div>
+      <div class="companion-rarity" id="companion-rarity"></div>
+    </div>
+  </div>
+
+  <!-- Empty state (no pokemon yet) -->
+  <div id="empty-state" class="empty-state" style="display:none">
+    <span class="emoji">⚡</span>
+    Code pour attraper<br>ton premier Pokémon !<br>
+    <small style="margin-top:6px;display:block">500 XP = 1 tirage</small>
+  </div>
+</div>
+
+<!-- ===== TAB: POKÉDEX ===== -->
+<div id="tab-pokedex" class="tab-panel">
+  <div class="pokedex-header">
+    <span class="pokedex-counter" id="dex-counter">Capturés : 0 / 1025</span>
+  </div>
+  <div class="gen-filters" id="gen-filters">
+    <button class="gen-btn active" data-gen="all">Tous</button>
+    <button class="gen-btn" data-gen="1">Gen I</button>
+    <button class="gen-btn" data-gen="2">Gen II</button>
+    <button class="gen-btn" data-gen="3">Gen III</button>
+    <button class="gen-btn" data-gen="4">Gen IV</button>
+    <button class="gen-btn" data-gen="5">Gen V</button>
+    <button class="gen-btn" data-gen="6">Gen VI</button>
+    <button class="gen-btn" data-gen="7">Gen VII</button>
+    <button class="gen-btn" data-gen="8">Gen VIII</button>
+    <button class="gen-btn" data-gen="9">Gen IX</button>
+  </div>
+  <div class="pokedex-grid" id="pokedex-grid"></div>
+</div>
+
+<!-- ===== TAB: BOX ===== -->
+<div id="tab-box" class="tab-panel">
+  <div class="box-list" id="box-list"></div>
+</div>
+
+<script>
+const vscode = acquireVsCodeApi();
+
+const RARITY_COLORS = {
+  Common: '#888888',
+  Uncommon: '#4ade80',
+  Rare: '#60a5fa',
+  Epic: '#c084fc',
+  Legendary: '#fbbf24',
+  Mythical: '#f87171'
+};
+const RARITY_STARS = {
+  Common: '·',
+  Uncommon: '★',
+  Rare: '★★',
+  Epic: '★★★',
+  Legendary: '★★★★',
+  Mythical: '★★★★★'
+};
+const GEN_NAMES = ['', 'Gen I', 'Gen II', 'Gen III', 'Gen IV', 'Gen V', 'Gen VI', 'Gen VII', 'Gen VIII', 'Gen IX'];
+
+const TRUSTED_IMG_HOSTS = [
+  'raw.githubusercontent.com',
+  'pokeapi.co',
+  'play.pokemonshowdown.com'
+];
+
+/**
+ * Validate that a URL is a safe https:// URL from a trusted image host.
+ * Returns the URL if valid, or '' otherwise.
+ */
+function safeImgUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return '';
+    if (!TRUSTED_IMG_HOSTS.includes(parsed.hostname)) return '';
+    return url;
+  } catch {
+    return '';
+  }
+}
+
+let currentData = null;
+let currentGenFilter = 'all';
+let prevCaptureCount = 0;
+
+// ---- MESSAGE HANDLER ----
+window.addEventListener('message', event => {
+  const msg = event.data;
+  if (msg.type === 'update') {
+    const newData = msg.data;
+    const newCount = newData.collection ? newData.collection.length : 0;
+    if (currentData && newCount > prevCaptureCount) {
+      // New capture!
+      const newest = newData.collection[newData.collection.length - 1];
+      if (newest) showCaptureNotif(newest);
+    }
+    prevCaptureCount = newCount;
+    currentData = newData;
+    renderAll(newData);
+  }
+});
+
+// ---- TABS ----
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const t = tab.dataset.tab;
+    switchTab(t);
+    if (t === 'pokedex' && currentData) renderPokedex(currentData.pokedex);
+    if (t === 'box' && currentData) renderBox(currentData);
+  });
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    const id = p.id.replace('tab-', '');
+    p.classList.toggle('active', id === name);
+  });
+}
+
+// ---- GEN FILTERS ----
+document.querySelectorAll('.gen-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentGenFilter = btn.dataset.gen;
+    document.querySelectorAll('.gen-btn').forEach(b => b.classList.toggle('active', b.dataset.gen === currentGenFilter));
+    if (currentData) renderPokedex(currentData.pokedex);
+  });
+});
+
+// ---- RENDER ALL ----
+function renderAll(data) {
+  renderXpBar(data);
+  renderCompanion(data);
+}
+
+function renderXpBar(data) {
+  const pending = data.pendingXp || 0;
+  const pct = Math.min(100, Math.round(pending / 500 * 100));
+  const remaining = 500 - pending;
+  document.getElementById('xp-fill').style.width = pct + '%';
+  document.getElementById('xp-text').textContent = pending + ' / 500';
+  document.getElementById('xp-hint').textContent = remaining + ' frappes avant tirage';
+}
+
+function renderCompanion(data) {
+  const collection = data.collection || [];
+  const emptyState = document.getElementById('empty-state');
+  const companionDisplay = document.getElementById('companion-display');
+
+  if (collection.length === 0) {
+    emptyState.style.display = '';
+    companionDisplay.style.display = 'none';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  companionDisplay.style.display = '';
+
+  const activeId = data.activePokemonId;
+  const pokemon = activeId !== null
+    ? collection.find(p => p.nationalId === activeId) || collection[collection.length - 1]
+    : collection[collection.length - 1];
+
+  if (!pokemon) return;
+
+  const spriteEl = document.getElementById('companion-sprite');
+  const displayUrl = pokemon.isShiny ? pokemon.shinySpriteUrl : pokemon.spriteUrl;
+  spriteEl.src = safeImgUrl(displayUrl);
+  spriteEl.alt = pokemon.name;
+  spriteEl.onerror = function() {
+    const fb = safeImgUrl(pokemon.fallbackUrl);
+    if (fb && this.src !== fb) {
+      this.src = fb;
+    }
+  };
+
+  document.getElementById('shiny-badge').style.display = pokemon.isShiny ? '' : 'none';
+  document.getElementById('companion-name').textContent = pokemon.name;
+
+  const genName = GEN_NAMES[pokemon.generation] || ('Gen ' + pokemon.generation);
+  const typeStr = pokemon.type2 ? (pokemon.type1 + ' / ' + pokemon.type2) : pokemon.type1;
+  document.getElementById('companion-meta').textContent =
+    '#' + String(pokemon.nationalId).padStart(3, '0') + ' · ' + typeStr + ' · ' + genName;
+
+  const rarityEl = document.getElementById('companion-rarity');
+  rarityEl.textContent = (RARITY_STARS[pokemon.rarity] || '') + ' ' + pokemon.rarity;
+  rarityEl.style.color = RARITY_COLORS[pokemon.rarity] || '#888';
+}
+
+// ---- CAPTURE NOTIFICATION ----
+function showCaptureNotif(pokemon) {
+  const notif = document.getElementById('notif');
+  const nameEl = document.getElementById('notif-name');
+  const spriteEl = document.getElementById('notif-sprite');
+
+  if (pokemon.isShiny) {
+    nameEl.textContent = '✨ ' + pokemon.name + ' shiny !';
+  } else {
+    nameEl.textContent = pokemon.name + ' obtenu !';
+  }
+
+  const displayUrl = pokemon.isShiny ? pokemon.shinySpriteUrl : pokemon.spriteUrl;
+  spriteEl.src = safeImgUrl(displayUrl);
+  spriteEl.onerror = function() {
+    const fb = safeImgUrl(pokemon.fallbackUrl);
+    if (fb) this.src = fb;
+  };
+
+  notif.style.display = 'flex';
+  setTimeout(() => { notif.style.display = 'none'; }, 3000);
+}
+
+// ---- POKÉDEX ----
+function renderPokedex(entries) {
+  if (!entries) return;
+
+  const filtered = currentGenFilter === 'all'
+    ? entries
+    : entries.filter(e => e.generation === parseInt(currentGenFilter));
+
+  const caught = entries.filter(e => e.caught).length;
+  document.getElementById('dex-counter').textContent = 'Capturés : ' + caught + ' / 1025';
+
+  const grid = document.getElementById('pokedex-grid');
+  grid.innerHTML = '';
+
+  filtered.sort((a, b) => a.nationalId - b.nationalId).forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'dex-entry' + (entry.caught ? '' : ' not-caught');
+    div.title = entry.caught ? (entry.name + (entry.caughtShiny ? ' ✨' : '')) : '???';
+
+    const img = document.createElement('img');
+    img.src = safeImgUrl(entry.spriteUrl);
+    img.alt = entry.caught ? entry.name : '???';
+    img.width = 40;
+    img.height = 40;
+    if (!entry.spriteUrl) img.style.display = 'none';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'dex-name';
+    nameEl.textContent = entry.caught ? entry.name : '???';
+
+    const numEl = document.createElement('div');
+    numEl.className = 'dex-number';
+    numEl.textContent = '#' + String(entry.nationalId).padStart(3, '0');
+
+    const dot = document.createElement('div');
+    dot.className = 'rarity-dot';
+
+    div.appendChild(img);
+    div.appendChild(nameEl);
+    div.appendChild(numEl);
+    div.appendChild(dot);
+    grid.appendChild(div);
+  });
+}
+
+// ---- BOX ----
+function renderBox(data) {
+  const list = document.getElementById('box-list');
+  const collection = data.collection || [];
+
+  if (collection.length === 0) {
+    list.innerHTML = '<div class="box-empty">Aucun Pokémon capturé encore.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  // Show most recently caught first
+  const sorted = [...collection].reverse();
+  sorted.forEach(pokemon => {
+    const item = document.createElement('div');
+    item.className = 'box-item' + (pokemon.nationalId === data.activePokemonId ? ' active' : '');
+    item.title = 'Définir comme compagnon';
+
+    const img = document.createElement('img');
+    const displayUrl = pokemon.isShiny ? pokemon.shinySpriteUrl : pokemon.spriteUrl;
+    img.src = safeImgUrl(displayUrl);
+    img.alt = pokemon.name;
+    img.width = 32;
+    img.height = 32;
+    img.onerror = function() {
+      const fb = safeImgUrl(pokemon.fallbackUrl);
+      if (fb) this.src = fb;
+    };
+
+    const info = document.createElement('div');
+    info.className = 'box-item-info';
+
+    const nameLine = document.createElement('div');
+    nameLine.className = 'box-item-name';
+    nameLine.textContent = pokemon.name + (pokemon.isShiny ? ' ✨' : '');
+
+    const metaLine = document.createElement('div');
+    metaLine.className = 'box-item-meta';
+    const typeStr = pokemon.type2 ? (pokemon.type1 + ' / ' + pokemon.type2) : pokemon.type1;
+    metaLine.textContent = '#' + String(pokemon.nationalId).padStart(3, '0') + ' · ' + typeStr;
+
+    info.appendChild(nameLine);
+    info.appendChild(metaLine);
+
+    const stars = document.createElement('span');
+    stars.className = 'box-item-stars';
+    stars.textContent = RARITY_STARS[pokemon.rarity] || '';
+    stars.style.color = RARITY_COLORS[pokemon.rarity] || '#888';
+
+    item.appendChild(img);
+    item.appendChild(info);
+    item.appendChild(stars);
+
+    item.addEventListener('click', () => {
+      vscode.postMessage({ type: 'setActive', nationalId: pokemon.nationalId });
+    });
+
+    list.appendChild(item);
+  });
+}
+</script>
+</body>
+</html>

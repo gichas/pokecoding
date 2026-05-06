@@ -1,0 +1,40 @@
+{
+  "name": "pokecoding",
+  "displayName": "PokéCoding",
+  "description": "Attrape des Pokémon en codant. Chaque frappe = XP.",
+  "version": "0.1.0",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [{
+        "id": "pokecoding",
+        "title": "PokéCoding",
+        "icon": "media/pokeball.svg"
+      }]
+    },
+    "views": {
+      "pokecoding": [{
+        "type": "webview",
+        "id": "pokecoding.sidebar",
+        "name": "PokéCoding"
+      }]
+    },
+    "commands": [
+      { "command": "pokecoding.resetProgress", "title": "PokéCoding: Réinitialiser la progression" },
+      { "command": "pokecoding.showPokedex",   "title": "PokéCoding: Afficher le Pokédex" }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
