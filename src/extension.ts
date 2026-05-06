@@ -9,11 +9,11 @@ import { SidebarProvider } from './sidebarProvider';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** XP gained each time a file is saved. */
-const XP_PER_SAVE = 100;
+/** Maximum XP awarded per onDidChangeTextDocument event (anti-paste-spam). */
+const XP_PER_EVENT_MAX = 20;
 
-/** Total XP threshold (from 0) that triggers evolution. */
-const XP_TO_EVOLVE = 1000;
+/** XP cost for evolutions with no min_level data (trade / happiness / etc.). */
+const XP_FALLBACK_EVOLVE = 1500;
 
 /** Highest national Pokédex ID available in PokéAPI. */
 const MAX_POKEMON_ID = 898;
@@ -22,6 +22,17 @@ const MAX_POKEMON_ID = 898;
 
 const KEY_OWNED = 'pokecoding.owned';
 const KEY_POKEDEX = 'pokecoding.pokedex';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Calculates the absolute XP value at which the next evolution triggers.
+ * Uses min_level from the evolution chain when available (min_level × 100).
+ * Falls back to XP_FALLBACK_EVOLVE for trade / happiness / special evolutions.
+ */
+function calcXpToEvolve(currentXp: number, minLevel: number | undefined): number {
+  return currentXp + (minLevel ? minLevel * 100 : XP_FALLBACK_EVOLVE);
+}
 
 // ─── Activation ──────────────────────────────────────────────────────────────
 
@@ -71,7 +82,7 @@ export function activate(context: vscode.ExtensionContext): void {
         rarity: owned.rarity,        // keep original capture rarity
         xp: currentXp,
         evolvesIntoId: nextStage?.nationalId,
-        xpToEvolve: nextStage ? currentXp + XP_TO_EVOLVE : undefined,
+        xpToEvolve: nextStage ? calcXpToEvolve(currentXp, nextStage.minLevel) : undefined,
       };
 
       // Mark new form as caught in Pokédex
@@ -115,7 +126,7 @@ export function activate(context: vscode.ExtensionContext): void {
           rarity: assignRarity(),
           xp: 0,
           evolvesIntoId: nextStage?.nationalId,
-          xpToEvolve: nextStage ? XP_TO_EVOLVE : undefined,
+          xpToEvolve: nextStage ? calcXpToEvolve(0, nextStage.minLevel) : undefined,
         };
 
         // Register in Pokédex
@@ -149,14 +160,26 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  // ── XP on save ───────────────────────────────────────────────────────────
+  // ── XP on text change ────────────────────────────────────────────────────
   context.subscriptions.push(
-    vscode.workspace.onDidSaveTextDocument(async () => {
+    vscode.workspace.onDidChangeTextDocument(async (event) => {
       if (!owned) {
         return;
       }
 
-      owned.xp += XP_PER_SAVE;
+      // Sum lengths of all inserted text in this event
+      const inserted = event.contentChanges.reduce(
+        (sum, change) => sum + (change.text.length > 0 ? change.text.length : 0),
+        0
+      );
+
+      if (inserted === 0) {
+        return;  // deletions / no-ops don't award XP
+      }
+
+      // At least 1 XP per event; cap at XP_PER_EVENT_MAX to avoid paste spam
+      const xpGained = Math.min(Math.max(inserted, 1), XP_PER_EVENT_MAX);
+      owned.xp += xpGained;
 
       if (owned.evolvesIntoId && owned.xpToEvolve !== undefined && owned.xp >= owned.xpToEvolve) {
         await triggerEvolution();
