@@ -336,7 +336,7 @@ body {
   <div id="companion-display">
     <div class="companion-section">
       <div class="walk-area" id="walk-area">
-        <img id="companion-sprite" src="" alt="companion" onerror="">
+        <img id="companion-sprite" src="" alt="companion">
         <span class="shiny-badge" id="shiny-badge">✨</span>
       </div>
       <div class="companion-name" id="companion-name">—</div>
@@ -398,6 +398,28 @@ const RARITY_STARS = {
   Mythical: '★★★★★'
 };
 const GEN_NAMES = ['', 'Gen I', 'Gen II', 'Gen III', 'Gen IV', 'Gen V', 'Gen VI', 'Gen VII', 'Gen VIII', 'Gen IX'];
+
+const TRUSTED_IMG_HOSTS = [
+  'raw.githubusercontent.com',
+  'pokeapi.co',
+  'play.pokemonshowdown.com'
+];
+
+/**
+ * Validate that a URL is a safe https:// URL from a trusted image host.
+ * Returns the URL if valid, or '' otherwise.
+ */
+function safeImgUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return '';
+    if (!TRUSTED_IMG_HOSTS.includes(parsed.hostname)) return '';
+    return url;
+  } catch {
+    return '';
+  }
+}
 
 let currentData = null;
 let currentGenFilter = 'all';
@@ -485,11 +507,12 @@ function renderCompanion(data) {
 
   const spriteEl = document.getElementById('companion-sprite');
   const displayUrl = pokemon.isShiny ? pokemon.shinySpriteUrl : pokemon.spriteUrl;
-  spriteEl.src = displayUrl || '';
+  spriteEl.src = safeImgUrl(displayUrl);
   spriteEl.alt = pokemon.name;
   spriteEl.onerror = function() {
-    if (this.src !== pokemon.fallbackUrl && pokemon.fallbackUrl) {
-      this.src = pokemon.fallbackUrl;
+    const fb = safeImgUrl(pokemon.fallbackUrl);
+    if (fb && this.src !== fb) {
+      this.src = fb;
     }
   };
 
@@ -519,9 +542,10 @@ function showCaptureNotif(pokemon) {
   }
 
   const displayUrl = pokemon.isShiny ? pokemon.shinySpriteUrl : pokemon.spriteUrl;
-  spriteEl.src = displayUrl || '';
+  spriteEl.src = safeImgUrl(displayUrl);
   spriteEl.onerror = function() {
-    if (pokemon.fallbackUrl) this.src = pokemon.fallbackUrl;
+    const fb = safeImgUrl(pokemon.fallbackUrl);
+    if (fb) this.src = fb;
   };
 
   notif.style.display = 'flex';
@@ -548,7 +572,7 @@ function renderPokedex(entries) {
     div.title = entry.caught ? (entry.name + (entry.caughtShiny ? ' ✨' : '')) : '???';
 
     const img = document.createElement('img');
-    img.src = entry.spriteUrl || '';
+    img.src = safeImgUrl(entry.spriteUrl);
     img.alt = entry.caught ? entry.name : '???';
     img.width = 40;
     img.height = 40;
@@ -593,12 +617,13 @@ function renderBox(data) {
 
     const img = document.createElement('img');
     const displayUrl = pokemon.isShiny ? pokemon.shinySpriteUrl : pokemon.spriteUrl;
-    img.src = displayUrl || '';
+    img.src = safeImgUrl(displayUrl);
     img.alt = pokemon.name;
     img.width = 32;
     img.height = 32;
     img.onerror = function() {
-      if (pokemon.fallbackUrl) this.src = pokemon.fallbackUrl;
+      const fb = safeImgUrl(pokemon.fallbackUrl);
+      if (fb) this.src = fb;
     };
 
     const info = document.createElement('div');
