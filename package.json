@@ -1,0 +1,40 @@
+{
+  "name": "pokecoding",
+  "displayName": "PokéCoding",
+  "description": "Catch and evolve Pokémon while you code!",
+  "version": "0.1.0",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension",
+  "contributes": {
+    "commands": [
+      {
+        "command": "pokecoding.capture",
+        "title": "PokéCoding: Capture a Pokémon"
+      },
+      {
+        "command": "pokecoding.showPokedex",
+        "title": "PokéCoding: Show Pokédex"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "type": "webview",
+          "id": "pokecoding.companion",
+          "name": "PokéCoding Companion"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0"
+  }
+}
