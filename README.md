@@ -1,7 +1,7 @@
 # PokéCoding
 
 A VS Code extension that lets you **catch and evolve Pokémon while you code**.  
-Each time you save a file your companion gains XP — accumulate enough and it evolves!
+Every character you type earns XP for your companion — accumulate enough and it evolves!
 
 ---
 
@@ -10,8 +10,8 @@ Each time you save a file your companion gains XP — accumulate enough and it e
 | Feature | Description |
 |---------|-------------|
 | 🎣 **Capture** | Grab a random Pokémon from the full PokéAPI national dex (898 Pokémon) |
-| 📈 **XP on save** | Every file save awards +100 XP to your active companion |
-| ✨ **Auto-evolution** | At 1 000 XP your Pokémon evolves automatically, complete with a flash animation |
+| 📈 **XP on typing** | Each text-change event awards 1–20 XP based on characters inserted (paste-spam capped) |
+| ✨ **Auto-evolution** | When XP reaches the evolution threshold your Pokémon evolves automatically, complete with a flash animation |
 | 📖 **Pokédex** | All forms you've owned are recorded; view the list with one command |
 | 🗂️ **Sidebar companion** | Always-visible panel shows sprite, types, rarity, XP bar, and the next evolution threshold |
 
@@ -29,13 +29,15 @@ PokéCoding: Capture a Pokémon
 Your new companion appears in the **PokéCoding Companion** panel (Explorer sidebar).
 
 ### Gain XP
-Just save any file (`Ctrl+S`). Each save gives **+100 XP**.
+Just type in any file. Each text-change event awards **1–20 XP** proportional to the number of characters inserted (capped at 20 to prevent paste spam). Deletions award no XP.
 
 ### Evolution
-When your Pokémon reaches **1 000 XP** (10 saves) it automatically evolves:
+When your Pokémon's XP reaches its evolution threshold it automatically evolves:
 - Sprite, name, and types are updated in the sidebar
 - A flash animation plays
 - The new form is added to your Pokédex
+
+The evolution threshold is based on the Pokémon's `min_level` from its evolution chain (`min_level × 100` XP above the current XP). Pokémon that evolve by trade, happiness, or other special conditions use a fallback threshold of **+1 500 XP** above current XP.
 
 The companion panel shows a **▶ Évolue à X XP** badge whenever an evolution is pending.
 
