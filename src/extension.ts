@@ -1,9 +1,20 @@
 import * as vscode from 'vscode';
 import { XpManager } from './xpManager';
-import { PokemonService, rollPokemonId } from './pokemonService';
+import { PokemonService, rollPokemonId, fetchEvolutionChain } from './pokemonService';
 import { SaveManager } from './saveManager';
 import { SidebarProvider } from './webview/sidebarProvider';
-import { SaveData, PokedexEntry } from './models';
+import { SaveData, OwnedPokemon, PokedexEntry } from './models';
+
+/** XP cost for evolutions with no min_level (trade / happiness / etc.). */
+const XP_FALLBACK_EVOLVE = 1500;
+
+/**
+ * Returns the totalXp threshold at which the next evolution triggers.
+ * Uses min_level × 100 when available; falls back to XP_FALLBACK_EVOLVE.
+ */
+function calcXpToEvolve(currentTotalXp: number, minLevel: number | undefined): number {
+  return currentTotalXp + (minLevel ? minLevel * 100 : XP_FALLBACK_EVOLVE);
+}
 
 let saveManager: SaveManager;
 let saveData: SaveData;
@@ -48,7 +59,20 @@ export function activate(context: vscode.ExtensionContext): void {
         xpManager.addXp(xp);
         saveData.totalXp += xp;
         saveData.pendingXp = xpManager.getPendingXp();
-        sidebarProvider.refresh(saveData);
+
+        // Check if the active companion can evolve
+        const activePokemon = saveData.collection.find(
+          p => p.nationalId === saveData.activePokemonId
+        );
+        if (
+          activePokemon?.evolvesIntoId !== undefined &&
+          activePokemon.xpToEvolve !== undefined &&
+          saveData.totalXp >= activePokemon.xpToEvolve
+        ) {
+          void triggerEvolution(pokemonService, activePokemon);
+        } else {
+          sidebarProvider.refresh(saveData);
+        }
       }
     })
   );
@@ -80,7 +104,18 @@ export function activate(context: vscode.ExtensionContext): void {
 async function triggerCapture(pokemonService: PokemonService): Promise<void> {
   try {
     const id = rollPokemonId();
-    const pokemon = await pokemonService.fetchPokemon(id);
+    const [pokemon, chain] = await Promise.all([
+      pokemonService.fetchPokemon(id),
+      fetchEvolutionChain(id),
+    ]);
+
+    // Find the next evolution stage for this Pokémon
+    const idx = chain.findIndex(s => s.nationalId === id);
+    const nextStage = idx >= 0 && idx < chain.length - 1 ? chain[idx + 1] : undefined;
+    if (nextStage) {
+      pokemon.evolvesIntoId = nextStage.nationalId;
+      pokemon.xpToEvolve = calcXpToEvolve(saveData.totalXp, nextStage.minLevel);
+    }
 
     // Add to collection
     saveData.collection.push(pokemon);
@@ -123,6 +158,79 @@ async function triggerCapture(pokemonService: PokemonService): Promise<void> {
     vscode.window.showInformationMessage(msg);
   } catch {
     // Silent fail — never crash on capture error
+  }
+}
+
+async function triggerEvolution(
+  pokemonService: PokemonService,
+  current: OwnedPokemon
+): Promise<void> {
+  if (current.evolvesIntoId === undefined) { return; }
+
+  try {
+    const nextId = current.evolvesIntoId;
+    const [evolved, chain] = await Promise.all([
+      pokemonService.fetchPokemon(nextId),
+      fetchEvolutionChain(nextId),
+    ]);
+
+    // Preserve the original rarity and carry over shiny status
+    evolved.rarity = current.rarity;
+    evolved.isShiny = current.isShiny;
+
+    // Find whether the evolved form can further evolve
+    const idx = chain.findIndex(s => s.nationalId === nextId);
+    const nextStage = idx >= 0 && idx < chain.length - 1 ? chain[idx + 1] : undefined;
+    if (nextStage) {
+      evolved.evolvesIntoId = nextStage.nationalId;
+      evolved.xpToEvolve = calcXpToEvolve(saveData.totalXp, nextStage.minLevel);
+    }
+
+    // Replace the old form in the collection
+    const collectionIdx = saveData.collection.findIndex(
+      p => p.nationalId === current.nationalId
+    );
+    if (collectionIdx >= 0) {
+      saveData.collection[collectionIdx] = evolved;
+    } else {
+      saveData.collection.push(evolved);
+    }
+
+    // If the evolved form was the active companion, update the active ID
+    if (saveData.activePokemonId === current.nationalId) {
+      saveData.activePokemonId = evolved.nationalId;
+    }
+
+    // Update or add Pokédex entry for the evolved form
+    const existingEntry = saveData.pokedex.find(e => e.nationalId === evolved.nationalId);
+    if (existingEntry) {
+      existingEntry.caught = true;
+      if (evolved.isShiny) { existingEntry.caughtShiny = true; }
+    } else {
+      const newEntry: PokedexEntry = {
+        nationalId: evolved.nationalId,
+        name: evolved.name,
+        type1: evolved.type1,
+        type2: evolved.type2,
+        generation: evolved.generation,
+        caught: true,
+        caughtShiny: evolved.isShiny,
+        spriteUrl: evolved.fallbackUrl,
+      };
+      saveData.pokedex.push(newEntry);
+    }
+
+    await saveManager.save(saveData);
+    sidebarProvider.notifyCapture(evolved, saveData);
+    vscode.window.showInformationMessage(
+      `✨ ${current.name} évolue en ${evolved.name} !`
+    );
+  } catch {
+    // Silent fallback — clear pending evolution so we don't retry forever
+    current.evolvesIntoId = undefined;
+    current.xpToEvolve = undefined;
+    await saveManager.save(saveData);
+    sidebarProvider.refresh(saveData);
   }
 }
 

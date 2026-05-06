@@ -20,6 +20,8 @@ export interface OwnedPokemon {
   fallbackUrl: string;   // PNG statique
   pokemonName: string;   // nom slug lowercase pour Showdown (ex: "bulbasaur")
   caughtAt: number;      // Date.now()
+  evolvesIntoId?: number;  // national ID of the next evolution, if any
+  xpToEvolve?: number;     // totalXp threshold that triggers evolution
 }
 
 export interface PokedexEntry {

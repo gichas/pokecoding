@@ -144,3 +144,56 @@ export class PokemonService {
     }
   }
 }
+
+// ─── Evolution chain ──────────────────────────────────────────────────────────
+
+export interface EvolutionStage {
+  name: string;
+  nationalId: number;
+  minLevel?: number;
+}
+
+interface ChainLink {
+  species: { name: string; url: string };
+  evolution_details: Array<{ min_level: number | null }>;
+  evolves_to: ChainLink[];
+}
+
+function extractIdFromUrl(url: string): number {
+  const match = url.match(/\/(\d+)\/?$/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+function parseChainLinks(link: ChainLink): EvolutionStage[] {
+  const id = extractIdFromUrl(link.species.url);
+  const rawLevel = link.evolution_details?.[0]?.min_level;
+  const stage: EvolutionStage = {
+    name: link.species.name,
+    nationalId: id,
+    minLevel: rawLevel ?? undefined,
+  };
+  const downstream = link.evolves_to.flatMap(parseChainLinks);
+  return [stage, ...downstream];
+}
+
+/**
+ * Fetches the full evolution chain for the given national ID.
+ * Returns an empty array on any error (silent fallback).
+ */
+export async function fetchEvolutionChain(pokemonId: number): Promise<EvolutionStage[]> {
+  try {
+    const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonId}`);
+    if (!speciesRes.ok) { return []; }
+    const species = (await speciesRes.json()) as Record<string, unknown>;
+
+    const chainUrl = (species.evolution_chain as { url: string } | null)?.url;
+    if (!chainUrl) { return []; }
+
+    const chainRes = await fetch(chainUrl);
+    if (!chainRes.ok) { return []; }
+    const chainData = (await chainRes.json()) as { chain: ChainLink };
+    return parseChainLinks(chainData.chain);
+  } catch {
+    return [];
+  }
+}
