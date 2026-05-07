@@ -135,6 +135,7 @@ async function triggerCapture(pokemonService: PokemonService): Promise<void> {
         type1: pokemon.type1,
         type2: pokemon.type2,
         generation: pokemon.generation,
+        rarity: pokemon.rarity,
         caught: true,
         caughtShiny: pokemon.isShiny,
         spriteUrl: pokemon.fallbackUrl
@@ -213,6 +214,7 @@ async function triggerEvolution(
         type1: evolved.type1,
         type2: evolved.type2,
         generation: evolved.generation,
+        rarity: evolved.rarity,
         caught: true,
         caughtShiny: evolved.isShiny,
         spriteUrl: evolved.fallbackUrl,

@@ -30,6 +30,7 @@ export interface PokedexEntry {
   type1: string;
   type2: string;
   generation: number;
+  rarity: Rarity;
   caught: boolean;
   caughtShiny: boolean;
   spriteUrl: string;

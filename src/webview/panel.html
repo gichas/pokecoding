@@ -148,6 +148,12 @@ body {
   font-size: 12px;
   font-weight: 600;
 }
+.companion-evolve {
+  font-size: 11px;
+  color: var(--accent);
+  text-align: center;
+  display: none;
+}
 .empty-state {
   padding: 24px 12px;
   text-align: center;
@@ -320,7 +326,7 @@ body {
     <div class="xp-bar">
       <div class="xp-fill" id="xp-fill" style="width:0%"></div>
     </div>
-    <div class="xp-hint" id="xp-hint">500 frappes avant tirage</div>
+    <div class="xp-hint" id="xp-hint">500 XP avant prochain Pokémon</div>
   </div>
 
   <!-- Capture notification -->
@@ -342,6 +348,7 @@ body {
       <div class="companion-name" id="companion-name">—</div>
       <div class="companion-meta" id="companion-meta"></div>
       <div class="companion-rarity" id="companion-rarity"></div>
+      <div class="companion-evolve" id="companion-evolve"></div>
     </div>
   </div>
 
@@ -481,7 +488,7 @@ function renderXpBar(data) {
   const remaining = 500 - pending;
   document.getElementById('xp-fill').style.width = pct + '%';
   document.getElementById('xp-text').textContent = pending + ' / 500';
-  document.getElementById('xp-hint').textContent = remaining + ' frappes avant tirage';
+  document.getElementById('xp-hint').textContent = remaining + ' XP avant prochain Pokémon';
 }
 
 function renderCompanion(data) {
@@ -527,6 +534,14 @@ function renderCompanion(data) {
   const rarityEl = document.getElementById('companion-rarity');
   rarityEl.textContent = (RARITY_STARS[pokemon.rarity] || '') + ' ' + pokemon.rarity;
   rarityEl.style.color = RARITY_COLORS[pokemon.rarity] || '#888';
+
+  const evolveEl = document.getElementById('companion-evolve');
+  if (pokemon.xpToEvolve !== undefined && pokemon.xpToEvolve !== null) {
+    evolveEl.textContent = '▶ Évolue à ' + pokemon.xpToEvolve + ' XP';
+    evolveEl.style.display = '';
+  } else {
+    evolveEl.style.display = 'none';
+  }
 }
 
 // ---- CAPTURE NOTIFICATION ----
@@ -588,6 +603,9 @@ function renderPokedex(entries) {
 
     const dot = document.createElement('div');
     dot.className = 'rarity-dot';
+    if (entry.caught && entry.rarity) {
+      dot.style.backgroundColor = RARITY_COLORS[entry.rarity] || '#888';
+    }
 
     div.appendChild(img);
     div.appendChild(nameEl);
